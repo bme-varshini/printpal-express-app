@@ -101,8 +101,9 @@ function write<T>(key: string, v: T) {
 }
 
 function useStore<T>(key: string, fallback: T): [T, (v: T) => void] {
-  const [s, set] = useState<T>(() => read(key, fallback));
+  const [s, set] = useState<T>(fallback);
   useEffect(() => {
+    set(read(key, fallback));
     const h = () => set(read(key, fallback));
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
@@ -121,10 +122,11 @@ export function useMyShop() {
 }
 
 export function usePrinters() {
-  const [shop, setShop] = useState<MyShop>(() => read("pp:myshop", DEFAULT_SHOP));
-  const [user, setUser] = useState<any>(() => read("pp:user", null));
+  const [shop, setShop] = useState<MyShop>(DEFAULT_SHOP);
+  const [user, setUser] = useState<any>(null);
   useEffect(() => {
     const h = () => { setShop(read("pp:myshop", DEFAULT_SHOP)); setUser(read("pp:user", null)); };
+    h();
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
     return () => { window.removeEventListener("pp:update", h); window.removeEventListener("storage", h); };
@@ -167,8 +169,9 @@ export function getPrinter(id: string): Printer | undefined {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<{ name: string; email: string } | null>(() => read("pp:user", null));
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   useEffect(() => {
+    setUser(read("pp:user", null));
     const h = () => setUser(read("pp:user", null));
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
@@ -205,8 +208,9 @@ export function useOrders() {
 }
 
 export function useChat(orderId: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => read(`pp:chat:${orderId}`, []));
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   useEffect(() => {
+    setMessages(read(`pp:chat:${orderId}`, []));
     const h = () => setMessages(read(`pp:chat:${orderId}`, []));
     window.addEventListener("pp:update", h);
     return () => window.removeEventListener("pp:update", h);
