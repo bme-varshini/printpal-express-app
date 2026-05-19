@@ -208,8 +208,9 @@ export function useOrders() {
 }
 
 export function useChat(orderId: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => read(`pp:chat:${orderId}`, []));
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   useEffect(() => {
+    setMessages(read(`pp:chat:${orderId}`, []));
     const h = () => setMessages(read(`pp:chat:${orderId}`, []));
     window.addEventListener("pp:update", h);
     return () => window.removeEventListener("pp:update", h);
