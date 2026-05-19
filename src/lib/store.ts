@@ -122,10 +122,11 @@ export function useMyShop() {
 }
 
 export function usePrinters() {
-  const [shop, setShop] = useState<MyShop>(() => read("pp:myshop", DEFAULT_SHOP));
-  const [user, setUser] = useState<any>(() => read("pp:user", null));
+  const [shop, setShop] = useState<MyShop>(DEFAULT_SHOP);
+  const [user, setUser] = useState<any>(null);
   useEffect(() => {
     const h = () => { setShop(read("pp:myshop", DEFAULT_SHOP)); setUser(read("pp:user", null)); };
+    h();
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
     return () => { window.removeEventListener("pp:update", h); window.removeEventListener("storage", h); };
