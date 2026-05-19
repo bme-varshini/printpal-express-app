@@ -1,14 +1,18 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, User } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, User, ArrowLeft } from "lucide-react";
 import { PrintPalLogo } from "@/components/PrintPalLogo";
 import { PhoneFrame } from "@/components/AppShell";
 import { useAuth } from "@/lib/store";
 
-export const Route = createFileRoute("/signup")({ component: Signup });
+export const Route = createFileRoute("/signup")({
+  validateSearch: (s: Record<string, unknown>) => ({ redirect: (s.redirect as string) || "/" }),
+  component: Signup,
+});
 
 function Signup() {
   const { signup } = useAuth();
+  const { redirect } = useSearch({ from: "/signup" });
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -22,14 +26,18 @@ function Signup() {
     if (pw !== pw2) return setErr("Passwords don't match");
     if (pw.length < 6) return setErr("Password must be 6+ characters");
     signup(name, email);
-    navigate({ to: "/role" });
+    navigate({ to: redirect });
   };
 
   return (
     <PhoneFrame>
-      <div className="px-6 pt-12 pb-6">
+      <div className="px-5 pt-6">
+        <Link to="/" className="inline-flex items-center gap-1 text-primary text-sm"><ArrowLeft className="w-4 h-4" />Back</Link>
+      </div>
+      <div className="px-6 pt-6 pb-4">
         <PrintPalLogo />
-        <p className="text-center text-sm text-foreground mt-3">Create Your Account</p>
+        <p className="text-center text-sm text-foreground mt-3">Create your account</p>
+        <p className="text-center text-xs text-muted-foreground mt-1">One account — buy prints and offer printing.</p>
       </div>
 
       <form onSubmit={submit} className="mx-5 bg-primary text-primary-foreground rounded-2xl p-6 shadow-lg space-y-4">
@@ -45,7 +53,7 @@ function Signup() {
       </form>
 
       <p className="text-center text-sm text-muted-foreground mt-6">
-        Already have an account? <Link to="/" className="text-primary font-semibold">Sign In</Link>
+        Already have an account? <Link to="/login" search={{ redirect }} className="text-primary font-semibold">Sign In</Link>
       </p>
     </PhoneFrame>
   );

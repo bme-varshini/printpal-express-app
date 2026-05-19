@@ -28,7 +28,7 @@ function SellerNotifs() {
           </div>
         )}
       </PageBody>
-      <BottomNav variant="seller" />
+      <BottomNav />
     </PhoneFrame>
   );
 }
