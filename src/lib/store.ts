@@ -169,8 +169,9 @@ export function getPrinter(id: string): Printer | undefined {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState<{ name: string; email: string } | null>(() => read("pp:user", null));
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   useEffect(() => {
+    setUser(read("pp:user", null));
     const h = () => setUser(read("pp:user", null));
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
