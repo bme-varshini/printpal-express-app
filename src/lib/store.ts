@@ -101,8 +101,9 @@ function write<T>(key: string, v: T) {
 }
 
 function useStore<T>(key: string, fallback: T): [T, (v: T) => void] {
-  const [s, set] = useState<T>(() => read(key, fallback));
+  const [s, set] = useState<T>(fallback);
   useEffect(() => {
+    set(read(key, fallback));
     const h = () => set(read(key, fallback));
     window.addEventListener("pp:update", h);
     window.addEventListener("storage", h);
