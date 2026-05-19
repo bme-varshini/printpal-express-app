@@ -1,69 +1,92 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
-import { PrintPalLogo } from "@/components/PrintPalLogo";
-import { PhoneFrame } from "@/components/AppShell";
-import { useAuth } from "@/lib/store";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Search, MapPin, Star, Filter } from "lucide-react";
+import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
+import { usePrinters, CATEGORIES } from "@/lib/store";
+import { useState } from "react";
 
-export const Route = createFileRoute("/")({ component: Login });
+export const Route = createFileRoute("/")({ component: Home });
 
-function Login() {
-  const { user, login } = useAuth();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("");
-  const [show, setShow] = useState(false);
+function Home() {
+  const printers = usePrinters();
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("All");
 
-  useEffect(() => {
-    if (user?.role === "buyer") navigate({ to: "/buyer" });
-    else if (user?.role === "seller") navigate({ to: "/seller" });
-  }, [user, navigate]);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !pw) return;
-    login(email);
-    navigate({ to: "/role" });
-  };
+  const filtered = printers.filter(p => {
+    const matchQ = (p.name + p.location + p.services).toLowerCase().includes(q.toLowerCase());
+    const matchC = cat === "All" || p.category === cat;
+    return matchQ && matchC;
+  });
 
   return (
     <PhoneFrame>
-      <div className="px-6 pt-16 pb-8">
-        <PrintPalLogo />
-        <p className="text-center text-sm text-muted-foreground mt-3 leading-relaxed">
-          Your Printing Partner<br />Anytime. Anywhere.
-        </p>
-      </div>
-
-      <form onSubmit={submit} className="mx-5 bg-primary text-primary-foreground rounded-2xl p-6 shadow-lg">
-        <h2 className="font-display text-2xl text-center mb-6">Welcome Back</h2>
-
-        <label className="text-sm font-medium">Email</label>
-        <div className="relative mt-1.5 mb-4">
-          <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={email} onChange={e => setEmail(e.target.value)} type="email" required placeholder="you@email.com"
-            className="w-full pl-10 pr-3 py-3 rounded-lg bg-card text-foreground placeholder:text-muted-foreground/60 outline-none focus:ring-2 focus:ring-primary-foreground/50" />
+      <TopBar />
+      <PageBody>
+        <div className="mb-1">
+          <h1 className="font-display text-3xl text-primary leading-tight">Find a Printer</h1>
+          <p className="text-sm text-muted-foreground">Browse nearby print shops — no login needed.</p>
         </div>
 
-        <label className="text-sm font-medium">Password</label>
-        <div className="relative mt-1.5">
-          <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={pw} onChange={e => setPw(e.target.value)} type={show ? "text" : "password"} required placeholder="••••••••"
-            className="w-full pl-10 pr-10 py-3 rounded-lg bg-card text-foreground outline-none focus:ring-2 focus:ring-primary-foreground/50" />
-          <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-            {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
+        <div className="relative mt-5 mb-4">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search shops, services, location"
+            className="w-full pl-9 pr-10 py-3 text-sm rounded-xl bg-muted border border-border outline-none focus:border-primary"
+          />
+          <Filter className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         </div>
-        <div className="text-right text-xs mt-2 opacity-90">Forgot Password?</div>
 
-        <button type="submit" className="w-full mt-5 py-3 rounded-lg bg-card text-foreground font-medium flex items-center justify-center gap-2 hover:bg-card/90 transition">
-          Sign In <ArrowRight className="w-4 h-4" />
-        </button>
-      </form>
+        <div className="flex gap-2 mb-5 overflow-x-auto -mx-5 px-5 pb-1 no-scrollbar">
+          {CATEGORIES.map(c => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`shrink-0 px-3.5 py-1.5 text-xs font-medium rounded-full border transition ${cat === c ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"}`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
 
-      <p className="text-center text-sm text-muted-foreground mt-6">
-        Don't have an account? <Link to="/signup" className="text-primary font-semibold">Sign Up</Link>
-      </p>
+        <h2 className="font-display text-xl mb-3">Nearby Printers <span className="text-muted-foreground text-sm font-sans">({filtered.length})</span></h2>
+
+        <div className="space-y-3">
+          {filtered.map(p => (
+            <Link
+              key={p.id}
+              to="/buyer/printer/$id"
+              params={{ id: p.id }}
+              className="block rounded-2xl border border-border overflow-hidden bg-card hover:shadow-md transition active:scale-[0.99]"
+            >
+              <div className="px-4 pt-3 pb-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-display text-lg font-semibold truncate">{p.name}</h3>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${p.online ? "bg-success/15 text-success" : "bg-muted-foreground/15 text-muted-foreground"}`}>
+                      {p.online ? "Open" : "Closed"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{p.distance}</span>
+                    <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />{p.rating.toFixed(1)}</span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-[10px] text-muted-foreground">from</div>
+                  <div className="font-display text-lg font-semibold text-primary leading-none">₹{p.pricePerPage}</div>
+                  <div className="text-[10px] text-muted-foreground">/page</div>
+                </div>
+              </div>
+              <div className="px-4 pb-3 text-xs text-muted-foreground truncate">{p.services} · {p.location}</div>
+            </Link>
+          ))}
+          {filtered.length === 0 && (
+            <div className="text-center py-12 text-sm text-muted-foreground">No printers match your search.</div>
+          )}
+        </div>
+      </PageBody>
+      <BottomNav />
     </PhoneFrame>
   );
 }
