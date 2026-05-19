@@ -7,11 +7,21 @@ import { useRef, useState } from "react";
 export const Route = createFileRoute("/buyer/printer/$id")({ component: PrinterPage });
 
 async function countPdfPages(file: File): Promise<number> {
-  const pdfjs: any = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = "";
   const buf = await file.arrayBuffer();
-  const doc = await pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false }).promise;
-  return doc.numPages;
+  // Try pdfjs first
+  try {
+    const pdfjs: any = await import("pdfjs-dist");
+    if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = "";
+    const doc = await pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false }).promise;
+    if (doc?.numPages) return doc.numPages;
+  } catch {}
+  // Fallback: scan raw bytes for /Type /Page entries (not /Pages)
+  const text = new TextDecoder("latin1").decode(buf);
+  const matches = text.match(/\/Type\s*\/Page[^s]/g);
+  if (matches && matches.length) return matches.length;
+  // Last resort: /Count entry from /Pages object
+  const count = text.match(/\/Count\s+(\d+)/);
+  return count ? parseInt(count[1], 10) : 1;
 }
 
 function PrinterPage() {
