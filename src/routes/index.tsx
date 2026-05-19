@@ -12,6 +12,7 @@ function Home() {
   const [cat, setCat] = useState("All");
 
   const filtered = printers.filter(p => {
+    if (!p.online) return false;
     const matchQ = (p.name + p.location + p.services).toLowerCase().includes(q.toLowerCase());
     const matchC = cat === "All" || p.category === cat;
     return matchQ && matchC;
