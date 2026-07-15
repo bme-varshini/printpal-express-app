@@ -8,10 +8,10 @@ export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
   const { user, logout } = useAuth();
-  const { shop, update, setAvailable } = useMyShop();
+  const { shop, update, save: persist, setAvailable } = useMyShop();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 1400); };
+  const save = async () => { await persist(); setSaved(true); setTimeout(() => setSaved(false), 1400); };
 
   if (!user) {
     return (
