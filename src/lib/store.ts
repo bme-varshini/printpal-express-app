@@ -295,7 +295,7 @@ export function useOrders() {
       }
       if (patch.payment) dbPatch.payment = patch.payment;
       if (Object.keys(dbPatch).length === 0) return;
-      await supabase.from("orders").update(dbPatch).eq("id", id);
+      await supabase.from("orders").update(dbPatch as any).eq("id", id);
     },
   };
 }
