@@ -209,6 +209,11 @@ function PrinterPage() {
                 <Row label="Color" value={opts.color} />
                 <Row label="Sides" value={`${opts.sides}-sided`} />
                 <Row label="Paper" value={opts.paperSize} />
+                <Row label="Orientation" value={extras.orientation} />
+                {(extras.stapling || extras.lamination || extras.spiralBinding) && (
+                  <Row label="Finishing" value={[extras.stapling && "Stapling", extras.lamination && "Lamination", extras.spiralBinding && "Spiral"].filter(Boolean).join(", ")} />
+                )}
+                {extras.notes && <Row label="Notes" value={extras.notes} />}
                 <Row label="Subtotal" value={`₹${price.subtotal}`} />
                 {delivery === "Delivery" && <Row label="Delivery" value={`₹${price.delivery}`} />}
                 <div className="border-t border-border mt-3 pt-3 flex justify-between font-display text-2xl">
