@@ -64,28 +64,19 @@ function PrinterPage() {
     ? computePrice({ pages, copies, pricePerPage: printer.pricePerPage, options: opts, delivery, deliveryCharge: printer.deliveryCharge })
     : { subtotal: 0, delivery: 0, total: 0 };
 
-  const place = () => requireAuth(() => {
-    if (!file || !pages) return;
-    const order = {
-      id: uid(),
-      fileName: file.name,
-      pages, copies,
-      pricePerPage: printer.pricePerPage,
-      options: opts,
-      printerId: printer.id,
-      printerName: printer.name,
-      location: printer.location,
-      delivery,
-      payment: "Card" as const,
-      placedOn: new Date().toISOString(),
-      status: "Pending" as const,
-      buyerName: user!.name,
-      buyerEmail: user!.email,
-      total: price.total,
-      history: [{ status: "Pending" as const, ts: Date.now() }],
-    };
-    addOrder(order);
-    navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
+  const place = () => requireAuth(async () => {
+    if (!file || !pages || placing) return;
+    setPlacing(true); setPlaceErr("");
+    try {
+      const order = await createOrder({
+        file, printer, pages, copies, options: opts,
+        delivery, payment: "Card", total: price.total,
+      });
+      navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
+    } catch (e: any) {
+      setPlaceErr(e?.message || "Failed to place order");
+      setPlacing(false);
+    }
   });
 
   return (
