@@ -14,7 +14,194 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      messages: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          sender_id: string
+          sender_role: string
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          sender_id: string
+          sender_role: string
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          sender_id?: string
+          sender_role?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          buyer_email: string
+          buyer_id: string
+          buyer_name: string
+          color: string
+          copies: number
+          created_at: string
+          delivery: string
+          file_name: string
+          file_path: string
+          history: Json
+          id: string
+          location: string
+          pages: number
+          paper_size: string
+          payment: string
+          placed_on: string
+          price_per_page: number
+          printer_name: string
+          seller_id: string
+          sides: string
+          status: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          buyer_email?: string
+          buyer_id: string
+          buyer_name?: string
+          color?: string
+          copies?: number
+          created_at?: string
+          delivery?: string
+          file_name: string
+          file_path: string
+          history?: Json
+          id?: string
+          location?: string
+          pages: number
+          paper_size?: string
+          payment?: string
+          placed_on?: string
+          price_per_page: number
+          printer_name?: string
+          seller_id: string
+          sides?: string
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          buyer_email?: string
+          buyer_id?: string
+          buyer_name?: string
+          color?: string
+          copies?: number
+          created_at?: string
+          delivery?: string
+          file_name?: string
+          file_path?: string
+          history?: Json
+          id?: string
+          location?: string
+          pages?: number
+          paper_size?: string
+          payment?: string
+          placed_on?: string
+          price_per_page?: number
+          printer_name?: string
+          seller_id?: string
+          sides?: string
+          status?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          id: string
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      seller_profiles: {
+        Row: {
+          available: boolean
+          category: string
+          created_at: string
+          delivery: boolean
+          delivery_charge: number
+          distance: string
+          location: string
+          name: string
+          price_per_page: number
+          rating: number
+          services: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          delivery?: boolean
+          delivery_charge?: number
+          distance?: string
+          location?: string
+          name?: string
+          price_per_page?: number
+          rating?: number
+          services?: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available?: boolean
+          category?: string
+          created_at?: string
+          delivery?: boolean
+          delivery_charge?: number
+          distance?: string
+          location?: string
+          name?: string
+          price_per_page?: number
+          rating?: number
+          services?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
