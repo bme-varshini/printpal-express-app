@@ -186,8 +186,9 @@ function PrinterPage() {
                 <div className="border-t border-border mt-3 pt-3 flex justify-between font-display text-2xl">
                   <span>Total</span><span>₹{price.total}</span>
                 </div>
-                <button onClick={place} className="w-full mt-5 py-3.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-95 transition">
-                  {user ? "Continue to Payment" : "Sign in & Continue"}
+                {placeErr && <p className="mt-3 text-xs bg-destructive/15 text-destructive rounded p-2">{placeErr}</p>}
+                <button onClick={place} disabled={placing} className="w-full mt-5 py-3.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-95 transition disabled:opacity-60">
+                  {placing ? "Uploading…" : user ? "Continue to Payment" : "Sign in & Continue"}
                 </button>
               </div>
             )}
