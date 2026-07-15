@@ -57,33 +57,58 @@ function SellerDash() {
           <Stat icon={<IndianRupee className="w-4 h-4" />} label="Earnings" value={`₹${earnings}`} />
         </div>
 
+        {toVerify.length > 0 && (
+          <>
+            <SectionTitle>Payments to Verify</SectionTitle>
+            <div className="space-y-3 mb-5">
+              {toVerify.map(o => (
+                <PaymentReviewCard key={o.id} order={o} onApprove={() => updateOrder(o.id, { paymentStatus: "Payment Verified" })} onReject={() => updateOrder(o.id, { paymentStatus: "Payment Rejected" })} />
+              ))}
+            </div>
+          </>
+        )}
+
         {pending.length > 0 && (
           <>
             <SectionTitle>New Requests</SectionTitle>
             <div className="space-y-3 mb-5">
-              {pending.map(o => (
-                <div key={o.id} className="rounded-2xl border border-border overflow-hidden bg-card">
-                  <div className="bg-primary-soft px-4 py-2.5 flex items-center justify-between">
-                    <h3 className="font-medium text-primary flex items-center gap-2 text-sm"><FileText className="w-4 h-4" />New Order #{o.id}</h3>
-                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-md font-semibold">₹{o.total}</span>
-                  </div>
-                  <div className="px-4 py-3">
-                    <div className="text-sm font-medium truncate">{o.fileName}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {o.pages} pg × {o.copies} · {o.options.color} · {o.options.sides}-sided · {o.options.paperSize}
+              {pending.map(o => {
+                const paid = o.paymentStatus === "Payment Verified";
+                return (
+                  <div key={o.id} className="rounded-2xl border border-border overflow-hidden bg-card">
+                    <div className="bg-primary-soft px-4 py-2.5 flex items-center justify-between">
+                      <h3 className="font-medium text-primary flex items-center gap-2 text-sm"><FileText className="w-4 h-4" />New Order #{o.id.slice(0, 6)}</h3>
+                      <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-md font-semibold">₹{o.total}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">From {o.buyerName} · {o.delivery}</div>
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <button onClick={() => updateOrder(o.id, { status: "Rejected" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border text-destructive text-xs font-medium">
-                        <X className="w-3.5 h-3.5" />Reject
-                      </button>
-                      <button onClick={() => updateOrder(o.id, { status: "Received" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
-                        <Check className="w-3.5 h-3.5" />Accept
-                      </button>
+                    <div className="px-4 py-3">
+                      <div className="text-sm font-medium truncate">{o.fileName}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {o.pages} pg × {o.copies} · {o.options.color} · {o.options.sides}-sided · {o.options.paperSize} · {o.extras.orientation}
+                      </div>
+                      {(o.extras.stapling || o.extras.lamination || o.extras.spiralBinding) && (
+                        <div className="text-xs text-muted-foreground">Finishing: {[o.extras.stapling && "Stapling", o.extras.lamination && "Lamination", o.extras.spiralBinding && "Spiral"].filter(Boolean).join(", ")}</div>
+                      )}
+                      {o.extras.notes && <div className="text-xs text-muted-foreground italic mt-1">"{o.extras.notes}"</div>}
+                      <div className="text-xs text-muted-foreground mt-1">From {o.buyerName} · {o.delivery}</div>
+                      <div className={`text-[11px] mt-1 font-medium ${paid ? "text-success" : o.paymentStatus === "Payment Rejected" ? "text-destructive" : "text-muted-foreground"}`}>
+                        {paid ? "✓ Payment Verified" : o.paymentStatus === "Payment Rejected" ? "Payment Rejected" : "Awaiting payment"}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button onClick={() => updateOrder(o.id, { status: "Rejected" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border text-destructive text-xs font-medium">
+                          <X className="w-3.5 h-3.5" />Reject
+                        </button>
+                        <button
+                          onClick={() => paid && updateOrder(o.id, { status: "Received" })}
+                          disabled={!paid}
+                          title={paid ? "" : "Payment must be verified first"}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                          <Check className="w-3.5 h-3.5" />Accept
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
