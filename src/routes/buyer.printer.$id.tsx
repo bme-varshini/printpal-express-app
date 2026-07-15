@@ -161,6 +161,33 @@ function PrinterPage() {
               <Pill active={delivery === "Delivery"} onClick={() => setDelivery("Delivery")}>Delivery</Pill>
             </div>
 
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <h3 className="font-display text-lg">Order Instructions</h3>
+
+              <OptionGroup label="Orientation">
+                {(["Portrait", "Landscape"] as const).map(v => (
+                  <Pill key={v} active={extras.orientation === v} onClick={() => setExtras({ ...extras, orientation: v })}>{v}</Pill>
+                ))}
+              </OptionGroup>
+
+              <div className="grid grid-cols-3 gap-2">
+                <Pill active={extras.stapling} onClick={() => setExtras({ ...extras, stapling: !extras.stapling })}>Stapling</Pill>
+                <Pill active={extras.lamination} onClick={() => setExtras({ ...extras, lamination: !extras.lamination })}>Lamination</Pill>
+                <Pill active={extras.spiralBinding} onClick={() => setExtras({ ...extras, spiralBinding: !extras.spiralBinding })}>Spiral</Pill>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">Notes for seller</div>
+                <textarea
+                  value={extras.notes}
+                  onChange={e => setExtras({ ...extras, notes: e.target.value })}
+                  rows={3}
+                  placeholder="E.g. print first 10 pages in color, staple top-left…"
+                  className="w-full px-3 py-2.5 rounded-lg bg-muted outline-none focus:ring-2 focus:ring-primary/40 border border-border text-sm"
+                />
+              </div>
+            </div>
+
             <div className="rounded-2xl bg-primary-soft p-4 flex items-center justify-between">
               <div>
                 <div className="text-xs text-muted-foreground">Estimated total</div>
