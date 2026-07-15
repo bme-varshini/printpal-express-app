@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { MapPin, Save, LogOut, Store, ArrowRight, HelpCircle } from "lucide-react";
-import { useState } from "react";
-import { useAuth, useMyShop } from "@/lib/store";
+import { MapPin, Save, LogOut, Store, ArrowRight, HelpCircle, Upload, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useAuth, useMyShop, useSignedUrl } from "@/lib/store";
 
 export const Route = createFileRoute("/profile")({ component: Profile });
 
