@@ -17,16 +17,25 @@ function Login() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (user) navigate({ to: redirect });
   }, [user, redirect, navigate]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !pw) return;
-    login(email);
-    navigate({ to: redirect });
+    setBusy(true); setErr("");
+    try {
+      await login(email, pw);
+      navigate({ to: redirect });
+    } catch (e: any) {
+      setErr(e?.message || "Sign in failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
