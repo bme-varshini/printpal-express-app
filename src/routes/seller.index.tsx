@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { useOrders, useMyShop, useAuth } from "@/lib/store";
-import { FileText, ArrowRight, MessageCircle, Check, X, IndianRupee, ClipboardList } from "lucide-react";
+import { useOrders, useMyShop, useAuth, useSignedUrl, type Order } from "@/lib/store";
+import { FileText, ArrowRight, MessageCircle, Check, X, IndianRupee, ClipboardList, ImageIcon } from "lucide-react";
 
 export const Route = createFileRoute("/seller/")({ component: SellerDash });
 
