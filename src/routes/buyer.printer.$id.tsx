@@ -36,6 +36,7 @@ function PrinterPage() {
   const [copies, setCopies] = useState(1);
   const [delivery, setDelivery] = useState<"Self pick up" | "Delivery">("Self pick up");
   const [opts, setOpts] = useState<PrintOptions>({ color: "B&W", sides: "Single", paperSize: "A4" });
+  const [extras, setExtras] = useState<OrderExtras>({ orientation: "Portrait", stapling: false, lamination: false, spiralBinding: false, notes: "" });
   const [step, setStep] = useState<"upload" | "summary">("upload");
   const [placing, setPlacing] = useState(false);
   const [placeErr, setPlaceErr] = useState("");
