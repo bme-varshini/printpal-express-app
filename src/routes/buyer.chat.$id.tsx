@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { useChat, useOrders } from "@/lib/store";
+import { useChat, useOrders, useAuth } from "@/lib/store";
 import { ArrowLeft, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -11,18 +11,18 @@ function Chat() {
   const { orders } = useOrders();
   const order = orders.find(o => o.id === id);
   const { messages, send } = useChat(id);
+  const { user } = useAuth();
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    send("buyer", text.trim());
+    if (!text.trim() || !user) return;
+    const from: "buyer" | "seller" = order && order.sellerId === user.id ? "seller" : "buyer";
+    await send(from, text.trim());
     setText("");
-    // simulated seller response
-    setTimeout(() => send("seller", "Got it! Will update you shortly."), 900);
   };
 
   return (

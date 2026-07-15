@@ -8,10 +8,10 @@ export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
   const { user, logout } = useAuth();
-  const { shop, update, setAvailable } = useMyShop();
+  const { shop, update, save: persist, setAvailable } = useMyShop();
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 1400); };
+  const save = async () => { await persist(); setSaved(true); setTimeout(() => setSaved(false), 1400); };
 
   if (!user) {
     return (
@@ -96,7 +96,7 @@ function Profile() {
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
         </Link>
 
-        <button onClick={() => { logout(); navigate({ to: "/" }); }}
+        <button onClick={async () => { await logout(); navigate({ to: "/" }); }}
           className="mt-3 w-full flex items-center justify-center gap-2 p-3 rounded-xl text-destructive text-sm font-medium border border-border">
           <LogOut className="w-4 h-4" />Sign Out
         </button>

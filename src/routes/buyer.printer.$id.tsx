@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Upload, FileText, X, Loader2, MapPin, Star } from "lucide-react";
 import { PhoneFrame, TopBar, PageBody } from "@/components/AppShell";
-import { getPrinter, useOrders, useAuth, uid, computePrice, PrintOptions } from "@/lib/store";
+import { usePrinter, useAuth, computePrice, createOrder, PrintOptions } from "@/lib/store";
 import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/buyer/printer/$id")({ component: PrinterPage });
@@ -26,9 +26,8 @@ async function countPdfPages(file: File): Promise<number> {
 
 function PrinterPage() {
   const { id } = Route.useParams();
-  const printer = getPrinter(id);
+  const printer = usePrinter(id);
   const navigate = useNavigate();
-  const { addOrder } = useOrders();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -38,7 +37,10 @@ function PrinterPage() {
   const [delivery, setDelivery] = useState<"Self pick up" | "Delivery">("Self pick up");
   const [opts, setOpts] = useState<PrintOptions>({ color: "B&W", sides: "Single", paperSize: "A4" });
   const [step, setStep] = useState<"upload" | "summary">("upload");
+  const [placing, setPlacing] = useState(false);
+  const [placeErr, setPlaceErr] = useState("");
 
+  if (printer === undefined) return <PhoneFrame><TopBar /><div className="p-6 text-sm text-muted-foreground">Loading printer…</div></PhoneFrame>;
   if (!printer) return <PhoneFrame><TopBar /><div className="p-6 text-sm">Printer not found. <Link to="/" className="text-primary">Back to home</Link></div></PhoneFrame>;
 
   const requireAuth = (next: () => void) => {
@@ -62,28 +64,19 @@ function PrinterPage() {
     ? computePrice({ pages, copies, pricePerPage: printer.pricePerPage, options: opts, delivery, deliveryCharge: printer.deliveryCharge })
     : { subtotal: 0, delivery: 0, total: 0 };
 
-  const place = () => requireAuth(() => {
-    if (!file || !pages) return;
-    const order = {
-      id: uid(),
-      fileName: file.name,
-      pages, copies,
-      pricePerPage: printer.pricePerPage,
-      options: opts,
-      printerId: printer.id,
-      printerName: printer.name,
-      location: printer.location,
-      delivery,
-      payment: "Card" as const,
-      placedOn: new Date().toISOString(),
-      status: "Pending" as const,
-      buyerName: user!.name,
-      buyerEmail: user!.email,
-      total: price.total,
-      history: [{ status: "Pending" as const, ts: Date.now() }],
-    };
-    addOrder(order);
-    navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
+  const place = () => requireAuth(async () => {
+    if (!file || !pages || placing) return;
+    setPlacing(true); setPlaceErr("");
+    try {
+      const order = await createOrder({
+        file, printer, pages, copies, options: opts,
+        delivery, payment: "Card", total: price.total,
+      });
+      navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
+    } catch (e: any) {
+      setPlaceErr(e?.message || "Failed to place order");
+      setPlacing(false);
+    }
   });
 
   return (
@@ -193,8 +186,9 @@ function PrinterPage() {
                 <div className="border-t border-border mt-3 pt-3 flex justify-between font-display text-2xl">
                   <span>Total</span><span>₹{price.total}</span>
                 </div>
-                <button onClick={place} className="w-full mt-5 py-3.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-95 transition">
-                  {user ? "Continue to Payment" : "Sign in & Continue"}
+                {placeErr && <p className="mt-3 text-xs bg-destructive/15 text-destructive rounded p-2">{placeErr}</p>}
+                <button onClick={place} disabled={placing} className="w-full mt-5 py-3.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-95 transition disabled:opacity-60">
+                  {placing ? "Uploading…" : user ? "Continue to Payment" : "Sign in & Continue"}
                 </button>
               </div>
             )}

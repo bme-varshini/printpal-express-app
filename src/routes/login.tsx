@@ -17,16 +17,25 @@ function Login() {
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (user) navigate({ to: redirect });
   }, [user, redirect, navigate]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !pw) return;
-    login(email);
-    navigate({ to: redirect });
+    setBusy(true); setErr("");
+    try {
+      await login(email, pw);
+      navigate({ to: redirect });
+    } catch (e: any) {
+      setErr(e?.message || "Sign in failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -61,9 +70,10 @@ function Login() {
           </button>
         </div>
         <div className="text-right text-xs mt-2 opacity-90">Forgot Password?</div>
+        {err && <p className="mt-3 text-xs bg-destructive/20 rounded p-2">{err}</p>}
 
-        <button type="submit" className="w-full mt-5 py-3 rounded-lg bg-card text-foreground font-medium flex items-center justify-center gap-2 hover:bg-card/90 transition">
-          Sign In <ArrowRight className="w-4 h-4" />
+        <button type="submit" disabled={busy} className="w-full mt-5 py-3 rounded-lg bg-card text-foreground font-medium flex items-center justify-center gap-2 hover:bg-card/90 transition disabled:opacity-60">
+          {busy ? "Signing in…" : <>Sign In <ArrowRight className="w-4 h-4" /></>}
         </button>
       </form>
 

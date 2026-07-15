@@ -20,13 +20,21 @@ function Signup() {
   const [pw2, setPw2] = useState("");
   const [show, setShow] = useState(false);
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (pw !== pw2) return setErr("Passwords don't match");
     if (pw.length < 6) return setErr("Password must be 6+ characters");
-    signup(name, email);
-    navigate({ to: redirect });
+    setBusy(true); setErr("");
+    try {
+      await signup(name, email, pw);
+      navigate({ to: redirect });
+    } catch (e: any) {
+      setErr(e?.message || "Sign up failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
