@@ -8,10 +8,17 @@ export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
   const { user, logout } = useAuth();
-  const { shop, update, save: persist, setAvailable } = useMyShop();
+  const { shop, update, save: persist, setAvailable, uploadQr } = useMyShop();
+  const qrUrl = useSignedUrl("qrcodes", shop.qrPath);
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const qrRef = useRef<HTMLInputElement>(null);
   const save = async () => { await persist(); setSaved(true); setTimeout(() => setSaved(false), 1400); };
+  const handleQr = async (f: File) => {
+    setUploadingQr(true);
+    try { await uploadQr(f); } finally { setUploadingQr(false); }
+  };
 
   if (!user) {
     return (
