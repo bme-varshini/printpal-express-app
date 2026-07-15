@@ -1,5 +1,6 @@
-// Prototype store: localStorage-backed shared state
-import { useEffect, useState } from "react";
+// Supabase-backed store for PrintPal
+import { useEffect, useState, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type OrderStatus =
   | "Pending"
@@ -10,7 +11,7 @@ export type OrderStatus =
   | "Rejected";
 
 export interface Printer {
-  id: string;
+  id: string; // seller user_id
   name: string;
   location: string;
   distance: string;
@@ -31,6 +32,7 @@ export interface PrintOptions {
 export interface Order {
   id: string;
   fileName: string;
+  filePath: string;
   pages: number;
   copies: number;
   pricePerPage: number;
@@ -44,6 +46,8 @@ export interface Order {
   status: OrderStatus;
   buyerName: string;
   buyerEmail?: string;
+  buyerId: string;
+  sellerId: string;
   total: number;
   history: { status: OrderStatus; ts: number }[];
 }
@@ -71,7 +75,7 @@ export interface MyShop {
 const DEFAULT_SHOP: MyShop = {
   available: false,
   name: "My Print Shop",
-  location: "Block A, Room 204",
+  location: "",
   distance: "0.2 km",
   pricePerPage: 2,
   deliveryCharge: 10,
@@ -80,152 +84,318 @@ const DEFAULT_SHOP: MyShop = {
   delivery: true,
 };
 
-const PRINTERS: Printer[] = [
-  { id: "p1", name: "QuickPrint Hub", location: "Block A, Room 204", distance: "0.3 km", rating: 4.8, pricePerPage: 2, deliveryCharge: 10, services: "B&W, Color, Binding", online: true, category: "Documents" },
-  { id: "p2", name: "InkSpot Studio", location: "Library Basement", distance: "0.5 km", rating: 4.6, pricePerPage: 1.5, deliveryCharge: 15, services: "B&W, Color", online: true, category: "Documents" },
-  { id: "p3", name: "Campus Copy", location: "Hostel C Lobby", distance: "0.8 km", rating: 4.2, pricePerPage: 1, deliveryCharge: 0, services: "B&W only", online: false, category: "Documents" },
-  { id: "p4", name: "PrintWave", location: "Cafeteria Wing", distance: "1.1 km", rating: 4.9, pricePerPage: 3, deliveryCharge: 20, services: "Color, Lamination", online: true, category: "Photos" },
-  { id: "p5", name: "BindIt Pro", location: "Tech Park Gate 2", distance: "1.4 km", rating: 4.5, pricePerPage: 2.5, deliveryCharge: 25, services: "Binding, Posters", online: true, category: "Binding" },
-];
-
 export const CATEGORIES = ["All", "Documents", "Photos", "Binding", "Posters"];
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
-function write<T>(key: string, v: T) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(key, JSON.stringify(v));
-  window.dispatchEvent(new Event("pp:update"));
+function mapOrder(r: any): Order {
+  return {
+    id: r.id,
+    fileName: r.file_name,
+    filePath: r.file_path,
+    pages: r.pages,
+    copies: r.copies,
+    pricePerPage: Number(r.price_per_page),
+    options: { color: r.color, sides: r.sides, paperSize: r.paper_size },
+    printerId: r.seller_id,
+    printerName: r.printer_name,
+    location: r.location,
+    delivery: r.delivery,
+    payment: r.payment,
+    placedOn: r.placed_on,
+    status: r.status,
+    buyerName: r.buyer_name,
+    buyerEmail: r.buyer_email,
+    buyerId: r.buyer_id,
+    sellerId: r.seller_id,
+    total: Number(r.total),
+    history: r.history || [],
+  };
 }
 
-function useStore<T>(key: string, fallback: T): [T, (v: T) => void] {
-  const [s, set] = useState<T>(fallback);
+function mapPrinter(r: any): Printer {
+  return {
+    id: r.user_id,
+    name: r.name,
+    location: r.location,
+    distance: r.distance,
+    rating: Number(r.rating),
+    pricePerPage: Number(r.price_per_page),
+    deliveryCharge: Number(r.delivery_charge),
+    services: r.services,
+    online: r.available,
+    category: r.category,
+  };
+}
+
+export function useAuth() {
+  const [user, setUser] = useState<{ id: string; name: string; email: string } | null>(null);
   useEffect(() => {
-    set(read(key, fallback));
-    const h = () => set(read(key, fallback));
-    window.addEventListener("pp:update", h);
-    window.addEventListener("storage", h);
-    return () => { window.removeEventListener("pp:update", h); window.removeEventListener("storage", h); };
-  }, [key]);
-  return [s, (v: T) => write(key, v)];
+    let mounted = true;
+    const hydrate = async (u: any) => {
+      if (!u) { if (mounted) setUser(null); return; }
+      const { data: p } = await supabase.from("profiles").select("name,email").eq("id", u.id).maybeSingle();
+      if (!mounted) return;
+      setUser({
+        id: u.id,
+        name: p?.name || (u.email as string | undefined)?.split("@")[0] || "User",
+        email: p?.email || u.email || "",
+      });
+    };
+    supabase.auth.getSession().then(({ data }) => hydrate(data.session?.user));
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => hydrate(session?.user));
+    return () => { mounted = false; listener.subscription.unsubscribe(); };
+  }, []);
+  return {
+    user,
+    login: async (email: string, password: string) => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    },
+    signup: async (name: string, email: string, password: string) => {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+          emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+      if (error) throw error;
+    },
+    logout: async () => { await supabase.auth.signOut(); },
+  };
 }
 
 export function useMyShop() {
-  const [shop, setShop] = useStore<MyShop>("pp:myshop", DEFAULT_SHOP);
+  const { user } = useAuth();
+  const [shop, setShop] = useState<MyShop>(DEFAULT_SHOP);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!user) { setShop(DEFAULT_SHOP); return; }
+    supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+      if (!mounted) return;
+      if (data) {
+        setShop({
+          available: data.available,
+          name: data.name,
+          location: data.location,
+          distance: data.distance,
+          pricePerPage: Number(data.price_per_page),
+          deliveryCharge: Number(data.delivery_charge),
+          services: data.services,
+          type: data.type as MyShop["type"],
+          delivery: data.delivery,
+        });
+      } else {
+        setShop({ ...DEFAULT_SHOP, name: user.name ? `${user.name}'s Shop` : DEFAULT_SHOP.name });
+      }
+    });
+    return () => { mounted = false; };
+  }, [user?.id]);
+
+  const persist = useCallback(async (next: MyShop) => {
+    if (!user) return;
+    await supabase.from("seller_profiles").upsert({
+      user_id: user.id,
+      name: next.name,
+      location: next.location,
+      distance: next.distance,
+      price_per_page: next.pricePerPage,
+      delivery_charge: next.deliveryCharge,
+      services: next.services,
+      type: next.type,
+      delivery: next.delivery,
+      available: next.available,
+    });
+  }, [user?.id]);
+
   return {
     shop,
-    update: (patch: Partial<MyShop>) => setShop({ ...shop, ...patch }),
-    setAvailable: (v: boolean) => setShop({ ...shop, available: v }),
+    // Local update; call save() to persist. Keeps typing fast in forms.
+    update: (patch: Partial<MyShop>) => setShop(prev => ({ ...prev, ...patch })),
+    // Persist current shop state (used by Save button).
+    save: async () => { await persist(shop); },
+    // Toggle availability — persists immediately.
+    setAvailable: async (v: boolean) => {
+      const next = { ...shop, available: v };
+      setShop(next);
+      await persist(next);
+    },
   };
 }
 
 export function usePrinters() {
-  const [shop, setShop] = useState<MyShop>(DEFAULT_SHOP);
-  const [user, setUser] = useState<any>(null);
+  const [list, setList] = useState<Printer[]>([]);
   useEffect(() => {
-    const h = () => { setShop(read("pp:myshop", DEFAULT_SHOP)); setUser(read("pp:user", null)); };
-    h();
-    window.addEventListener("pp:update", h);
-    window.addEventListener("storage", h);
-    return () => { window.removeEventListener("pp:update", h); window.removeEventListener("storage", h); };
+    let mounted = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("seller_profiles")
+        .select("*")
+        .eq("available", true);
+      if (mounted) setList((data || []).map(mapPrinter));
+    };
+    load();
+    const ch = supabase
+      .channel("seller_profiles_pub")
+      .on("postgres_changes", { event: "*", schema: "public", table: "seller_profiles" }, load)
+      .subscribe();
+    return () => { mounted = false; supabase.removeChannel(ch); };
   }, []);
-  const list: Printer[] = [...PRINTERS];
-  if (shop.available && user) {
-    list.unshift({
-      id: "me",
-      name: shop.name || user?.name || "My Shop",
-      location: shop.location,
-      distance: shop.distance,
-      rating: 5.0,
-      pricePerPage: shop.pricePerPage,
-      deliveryCharge: shop.deliveryCharge,
-      services: shop.services,
-      online: true,
-      category: "Documents",
-    });
-  }
   return list;
 }
 
-export function getPrinter(id: string): Printer | undefined {
-  if (id === "me") {
-    const shop = read<MyShop>("pp:myshop", DEFAULT_SHOP);
-    const user = read<any>("pp:user", null);
-    return {
-      id: "me",
-      name: shop.name || user?.name || "My Shop",
-      location: shop.location,
-      distance: shop.distance,
-      rating: 5.0,
-      pricePerPage: shop.pricePerPage,
-      deliveryCharge: shop.deliveryCharge,
-      services: shop.services,
-      online: shop.available,
-    };
-  }
-  return PRINTERS.find(p => p.id === id);
-}
-
-export function useAuth() {
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+// undefined = loading, null = not found
+export function usePrinter(id: string): Printer | null | undefined {
+  const [p, setP] = useState<Printer | null | undefined>(undefined);
   useEffect(() => {
-    setUser(read("pp:user", null));
-    const h = () => setUser(read("pp:user", null));
-    window.addEventListener("pp:update", h);
-    window.addEventListener("storage", h);
-    return () => { window.removeEventListener("pp:update", h); window.removeEventListener("storage", h); };
-  }, []);
-  return {
-    user,
-    login: (email: string) => write("pp:user", { name: email.split("@")[0] || "User", email }),
-    signup: (name: string, email: string) => write("pp:user", { name, email }),
-    logout: () => write("pp:user", null),
-  };
+    let mounted = true;
+    setP(undefined);
+    supabase.from("seller_profiles").select("*").eq("user_id", id).maybeSingle().then(({ data }) => {
+      if (mounted) setP(data ? mapPrinter(data) : null);
+    });
+    return () => { mounted = false; };
+  }, [id]);
+  return p;
 }
 
 export function useOrders() {
-  const [orders, _set] = useStore<Order[]>("pp:orders", []);
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const uidRef = useRef<string | null>(null);
+  uidRef.current = user?.id ?? null;
+
+  useEffect(() => {
+    if (!user) { setOrders([]); return; }
+    let mounted = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("*")
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+        .order("placed_on", { ascending: false });
+      if (mounted) setOrders((data || []).map(mapOrder));
+    };
+    load();
+    const ch = supabase
+      .channel(`orders_${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, load)
+      .subscribe();
+    return () => { mounted = false; supabase.removeChannel(ch); };
+  }, [user?.id]);
+
   return {
     orders,
-    addOrder: (o: Order) => {
-      const cur = read<Order[]>("pp:orders", []);
-      write("pp:orders", [o, ...cur]);
-    },
-    updateOrder: (id: string, patch: Partial<Order>) => {
-      const cur = read<Order[]>("pp:orders", []);
-      write("pp:orders", cur.map(o => {
-        if (o.id !== id) return o;
-        const next = { ...o, ...patch };
-        if (patch.status && patch.status !== o.status) {
-          next.history = [...(o.history || []), { status: patch.status, ts: Date.now() }];
-        }
-        return next;
-      }));
+    updateOrder: async (id: string, patch: Partial<Order>) => {
+      const dbPatch: Record<string, any> = {};
+      const current = orders.find(o => o.id === id);
+      if (patch.status && patch.status !== current?.status) {
+        dbPatch.status = patch.status;
+        dbPatch.history = [...(current?.history || []), { status: patch.status, ts: Date.now() }];
+      }
+      if (patch.payment) dbPatch.payment = patch.payment;
+      if (Object.keys(dbPatch).length === 0) return;
+      await supabase.from("orders").update(dbPatch).eq("id", id);
     },
   };
 }
 
+export async function createOrder(input: {
+  file: File;
+  printer: Printer;
+  pages: number;
+  copies: number;
+  options: PrintOptions;
+  delivery: "Self pick up" | "Delivery";
+  payment: "Card" | "UPI" | "Cash";
+  total: number;
+}): Promise<Order> {
+  const { data: sess } = await supabase.auth.getUser();
+  const user = sess.user;
+  if (!user) throw new Error("Not signed in");
+  const path = `${user.id}/${crypto.randomUUID()}-${input.file.name}`;
+  const up = await supabase.storage.from("pdfs").upload(path, input.file, {
+    contentType: "application/pdf",
+    upsert: false,
+  });
+  if (up.error) throw up.error;
+  const { data: profile } = await supabase.from("profiles").select("name,email").eq("id", user.id).maybeSingle();
+  const row = {
+    buyer_id: user.id,
+    seller_id: input.printer.id,
+    file_name: input.file.name,
+    file_path: path,
+    pages: input.pages,
+    copies: input.copies,
+    price_per_page: input.printer.pricePerPage,
+    color: input.options.color,
+    sides: input.options.sides,
+    paper_size: input.options.paperSize,
+    delivery: input.delivery,
+    payment: input.payment,
+    total: input.total,
+    status: "Pending",
+    history: [{ status: "Pending", ts: Date.now() }],
+    printer_name: input.printer.name,
+    location: input.printer.location,
+    buyer_name: profile?.name || user.email?.split("@")[0] || "User",
+    buyer_email: profile?.email || user.email || "",
+  };
+  const { data, error } = await supabase.from("orders").insert(row).select("*").single();
+  if (error) throw error;
+  return mapOrder(data);
+}
+
 export function useChat(orderId: string) {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   useEffect(() => {
-    setMessages(read(`pp:chat:${orderId}`, []));
-    const h = () => setMessages(read(`pp:chat:${orderId}`, []));
-    window.addEventListener("pp:update", h);
-    return () => window.removeEventListener("pp:update", h);
+    if (!orderId) return;
+    let mounted = true;
+    const load = async () => {
+      const { data } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("order_id", orderId)
+        .order("created_at");
+      if (mounted) {
+        setMessages((data || []).map((m: any) => ({
+          id: m.id,
+          orderId: m.order_id,
+          from: m.sender_role,
+          text: m.text,
+          ts: new Date(m.created_at).getTime(),
+        })));
+      }
+    };
+    load();
+    const ch = supabase
+      .channel(`msg_${orderId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `order_id=eq.${orderId}` }, load)
+      .subscribe();
+    return () => { mounted = false; supabase.removeChannel(ch); };
   }, [orderId]);
   return {
     messages,
-    send: (from: "buyer" | "seller", text: string) => {
-      const cur = read<ChatMessage[]>(`pp:chat:${orderId}`, []);
-      write(`pp:chat:${orderId}`, [...cur, { id: crypto.randomUUID(), orderId, from, text, ts: Date.now() }]);
+    send: async (from: "buyer" | "seller", text: string) => {
+      if (!user) return;
+      await supabase.from("messages").insert({
+        order_id: orderId,
+        sender_role: from,
+        sender_id: user.id,
+        text,
+      });
     },
   };
 }
 
 export function computePrice(opts: {
-  pages: number; copies: number; pricePerPage: number; options: PrintOptions; delivery: "Self pick up" | "Delivery"; deliveryCharge: number;
+  pages: number;
+  copies: number;
+  pricePerPage: number;
+  options: PrintOptions;
+  delivery: "Self pick up" | "Delivery";
+  deliveryCharge: number;
 }) {
   const colorMult = opts.options.color === "Color" ? 2 : 1;
   const sizeMult = opts.options.paperSize === "A3" ? 1.5 : 1;
@@ -236,4 +406,6 @@ export function computePrice(opts: {
   return { subtotal: Math.round(subtotal), delivery, total: Math.round(subtotal) + delivery };
 }
 
-export function uid() { return Math.random().toString(36).slice(2, 9).toUpperCase(); }
+export function uid() {
+  return Math.random().toString(36).slice(2, 9).toUpperCase();
+}
