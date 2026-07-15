@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { useChat, useOrders } from "@/lib/store";
+import { useChat, useOrders, useAuth } from "@/lib/store";
 import { ArrowLeft, Send } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
