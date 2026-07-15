@@ -35,11 +35,17 @@ function OrderDetail() {
           <Tracker stageIdx={stageIdx >= 0 ? stageIdx : 0} />
 
           <div className="mt-5 space-y-2 text-sm">
+            <Row label="Payment status" value={order.paymentStatus} />
             <Row label="Pages" value={order.pages.toString()} />
             <Row label="No. of copies" value={order.copies.toString()} />
             <Row label="Price/Page" value={`₹${order.pricePerPage}`} />
+            <Row label="Orientation" value={order.extras.orientation} />
+            {(order.extras.stapling || order.extras.lamination || order.extras.spiralBinding) && (
+              <Row label="Finishing" value={[order.extras.stapling && "Stapling", order.extras.lamination && "Lamination", order.extras.spiralBinding && "Spiral"].filter(Boolean).join(", ")} />
+            )}
+            {order.extras.notes && <Row label="Notes" value={order.extras.notes} />}
             <div className="border-t border-border my-2" />
-            <Row label="Order ID" value={`#${order.id}`} />
+            <Row label="Order ID" value={`#${order.id.slice(0, 6)}`} />
             <Row label="Placed on" value={new Date(order.placedOn).toLocaleString()} />
             <Row label="Mode of Payment" value={order.payment} />
             <Row label="Mode of Delivery" value={order.delivery} />
