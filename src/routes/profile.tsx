@@ -92,6 +92,28 @@ function Profile() {
             <Input label="Delivery charge (₹)" type="number" value={String(shop.deliveryCharge)} onChange={(v: string) => update({ deliveryCharge: Number(v) || 0 })} />
           )}
 
+          <div className="border-t border-border pt-4 space-y-3">
+            <h4 className="font-medium text-sm">UPI Payments</h4>
+            <Input label="UPI ID" value={shop.upiId} onChange={(v: string) => update({ upiId: v })} />
+            <div>
+              <label className="text-sm font-medium">Payment QR code</label>
+              <div className="mt-1.5 flex items-start gap-3">
+                <div className="w-24 h-24 rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center shrink-0">
+                  {uploadingQr ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    : qrUrl ? <img src={qrUrl} alt="QR" className="w-full h-full object-contain" />
+                    : <span className="text-[10px] text-muted-foreground text-center px-1">No QR uploaded</span>}
+                </div>
+                <button type="button" onClick={() => qrRef.current?.click()}
+                  className="flex-1 bg-primary-soft border-2 border-dashed border-primary/40 rounded-lg py-4 flex flex-col items-center gap-1">
+                  <Upload className="w-5 h-5 text-primary" />
+                  <span className="text-xs text-primary font-medium">{shop.qrPath ? "Replace QR" : "Upload QR"}</span>
+                </button>
+                <input ref={qrRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => e.target.files?.[0] && handleQr(e.target.files[0])} />
+              </div>
+            </div>
+          </div>
+
           <button onClick={save}
             className="w-full bg-primary text-primary-foreground py-3 rounded-lg flex items-center justify-center gap-2 font-medium hover:opacity-95 transition">
             <Save className="w-4 h-4" />{saved ? "Saved!" : "Save Profile"}
