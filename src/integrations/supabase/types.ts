@@ -62,15 +62,23 @@ export type Database = {
           file_path: string
           history: Json
           id: string
+          lamination: boolean
           location: string
+          notes: string
+          orientation: string
           pages: number
           paper_size: string
           payment: string
+          payment_proof_path: string
+          payment_ref: string
+          payment_status: string
           placed_on: string
           price_per_page: number
           printer_name: string
           seller_id: string
           sides: string
+          spiral_binding: boolean
+          stapling: boolean
           status: string
           total: number
           updated_at: string
@@ -87,15 +95,23 @@ export type Database = {
           file_path: string
           history?: Json
           id?: string
+          lamination?: boolean
           location?: string
+          notes?: string
+          orientation?: string
           pages: number
           paper_size?: string
           payment?: string
+          payment_proof_path?: string
+          payment_ref?: string
+          payment_status?: string
           placed_on?: string
           price_per_page: number
           printer_name?: string
           seller_id: string
           sides?: string
+          spiral_binding?: boolean
+          stapling?: boolean
           status?: string
           total?: number
           updated_at?: string
@@ -112,15 +128,23 @@ export type Database = {
           file_path?: string
           history?: Json
           id?: string
+          lamination?: boolean
           location?: string
+          notes?: string
+          orientation?: string
           pages?: number
           paper_size?: string
           payment?: string
+          payment_proof_path?: string
+          payment_ref?: string
+          payment_status?: string
           placed_on?: string
           price_per_page?: number
           printer_name?: string
           seller_id?: string
           sides?: string
+          spiral_binding?: boolean
+          stapling?: boolean
           status?: string
           total?: number
           updated_at?: string
@@ -162,10 +186,12 @@ export type Database = {
           location: string
           name: string
           price_per_page: number
+          qr_path: string
           rating: number
           services: string
           type: string
           updated_at: string
+          upi_id: string
           user_id: string
         }
         Insert: {
@@ -178,10 +204,12 @@ export type Database = {
           location?: string
           name?: string
           price_per_page?: number
+          qr_path?: string
           rating?: number
           services?: string
           type?: string
           updated_at?: string
+          upi_id?: string
           user_id: string
         }
         Update: {
@@ -194,10 +222,12 @@ export type Database = {
           location?: string
           name?: string
           price_per_page?: number
+          qr_path?: string
           rating?: number
           services?: string
           type?: string
           updated_at?: string
+          upi_id?: string
           user_id?: string
         }
         Relationships: []
