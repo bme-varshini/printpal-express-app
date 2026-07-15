@@ -11,6 +11,7 @@ function Chat() {
   const { orders } = useOrders();
   const order = orders.find(o => o.id === id);
   const { messages, send } = useChat(id);
+  const { user } = useAuth();
   const [text, setText] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -18,12 +19,9 @@ function Chat() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
-    const isSeller = order?.sellerId && order?.buyerId
-      ? (await import("@/integrations/supabase/client")).supabase.auth.getUser().then(({ data }) => data.user?.id === order.sellerId)
-      : Promise.resolve(false);
-    const from: "buyer" | "seller" = (await isSeller) ? "seller" : "buyer";
-    send(from, text.trim());
+    if (!text.trim() || !user) return;
+    const from: "buyer" | "seller" = order && order.sellerId === user.id ? "seller" : "buyer";
+    await send(from, text.trim());
     setText("");
   };
 
