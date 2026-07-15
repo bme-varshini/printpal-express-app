@@ -26,9 +26,8 @@ async function countPdfPages(file: File): Promise<number> {
 
 function PrinterPage() {
   const { id } = Route.useParams();
-  const printer = getPrinter(id);
+  const printer = usePrinter(id);
   const navigate = useNavigate();
-  const { addOrder } = useOrders();
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -38,7 +37,10 @@ function PrinterPage() {
   const [delivery, setDelivery] = useState<"Self pick up" | "Delivery">("Self pick up");
   const [opts, setOpts] = useState<PrintOptions>({ color: "B&W", sides: "Single", paperSize: "A4" });
   const [step, setStep] = useState<"upload" | "summary">("upload");
+  const [placing, setPlacing] = useState(false);
+  const [placeErr, setPlaceErr] = useState("");
 
+  if (printer === undefined) return <PhoneFrame><TopBar /><div className="p-6 text-sm text-muted-foreground">Loading printer…</div></PhoneFrame>;
   if (!printer) return <PhoneFrame><TopBar /><div className="p-6 text-sm">Printer not found. <Link to="/" className="text-primary">Back to home</Link></div></PhoneFrame>;
 
   const requireAuth = (next: () => void) => {
