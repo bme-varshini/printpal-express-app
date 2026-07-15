@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Upload, FileText, X, Loader2, MapPin, Star } from "lucide-react";
 import { PhoneFrame, TopBar, PageBody } from "@/components/AppShell";
-import { getPrinter, useOrders, useAuth, uid, computePrice, PrintOptions } from "@/lib/store";
+import { usePrinter, useAuth, computePrice, createOrder, PrintOptions } from "@/lib/store";
 import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/buyer/printer/$id")({ component: PrinterPage });
