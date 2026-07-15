@@ -16,13 +16,15 @@ function Chat() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
-    send("buyer", text.trim());
+    const isSeller = order?.sellerId && order?.buyerId
+      ? (await import("@/integrations/supabase/client")).supabase.auth.getUser().then(({ data }) => data.user?.id === order.sellerId)
+      : Promise.resolve(false);
+    const from: "buyer" | "seller" = (await isSeller) ? "seller" : "buyer";
+    send(from, text.trim());
     setText("");
-    // simulated seller response
-    setTimeout(() => send("seller", "Got it! Will update you shortly."), 900);
   };
 
   return (
