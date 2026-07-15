@@ -70,8 +70,8 @@ function PrinterPage() {
     setPlacing(true); setPlaceErr("");
     try {
       const order = await createOrder({
-        file, printer, pages, copies, options: opts,
-        delivery, payment: "Card", total: price.total,
+        file, printer, pages, copies, options: opts, extras,
+        delivery, payment: "UPI", total: price.total,
       });
       navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
     } catch (e: any) {
