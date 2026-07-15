@@ -335,7 +335,7 @@ export async function createOrder(input: {
     payment: input.payment,
     total: input.total,
     status: "Pending",
-    history: [{ status: "Pending", ts: Date.now() }],
+    history: [{ status: "Pending", ts: Date.now() }] as any,
     printer_name: input.printer.name,
     location: input.printer.location,
     buyer_name: profile?.name || user.email?.split("@")[0] || "User",
