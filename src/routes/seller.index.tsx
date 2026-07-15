@@ -31,7 +31,8 @@ function SellerDash() {
     );
   }
 
-  const pending = orders.filter(o => o.status === "Pending");
+  const toVerify = orders.filter(o => o.paymentStatus === "Payment Submitted");
+  const pending = orders.filter(o => o.status === "Pending" && o.paymentStatus !== "Payment Submitted");
   const active = orders.filter(o => ["Received", "Printing", "Ready for Pick Up"].includes(o.status));
   const completed = orders.filter(o => o.status === "Completed");
   const earnings = completed.reduce((s, o) => s + (o.total || 0), 0);
