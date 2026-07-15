@@ -120,7 +120,7 @@ function Profile() {
           </button>
         </div>
 
-        <Link to="/buyer/help" className="mt-4 flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+        <Link to="/buyer/help" search={{ orderId: "" }} className="mt-4 flex items-center justify-between p-4 rounded-xl border border-border bg-card">
           <span className="flex items-center gap-3 text-sm font-medium"><HelpCircle className="w-4 h-4 text-primary" />Help & Complaints</span>
           <ArrowRight className="w-4 h-4 text-muted-foreground" />
         </Link>
