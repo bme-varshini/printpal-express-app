@@ -384,7 +384,7 @@ export async function submitPaymentProof(orderId: string, opts: { file?: File | 
   const patch: Record<string, any> = { payment_status: "Payment Submitted" };
   if (proofPath) patch.payment_proof_path = proofPath;
   if (opts.ref) patch.payment_ref = opts.ref;
-  const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
+  const { error } = await supabase.from("orders").update(patch as any).eq("id", orderId);
   if (error) throw error;
 }
 
