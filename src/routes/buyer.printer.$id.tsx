@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Upload, FileText, X, Loader2, MapPin, Star } from "lucide-react";
 import { PhoneFrame, TopBar, PageBody } from "@/components/AppShell";
-import { usePrinter, useAuth, computePrice, createOrder, PrintOptions } from "@/lib/store";
+import { usePrinter, useAuth, computePrice, createOrder, PrintOptions, OrderExtras } from "@/lib/store";
 import { useRef, useState } from "react";
 
 export const Route = createFileRoute("/buyer/printer/$id")({ component: PrinterPage });
@@ -36,6 +36,7 @@ function PrinterPage() {
   const [copies, setCopies] = useState(1);
   const [delivery, setDelivery] = useState<"Self pick up" | "Delivery">("Self pick up");
   const [opts, setOpts] = useState<PrintOptions>({ color: "B&W", sides: "Single", paperSize: "A4" });
+  const [extras, setExtras] = useState<OrderExtras>({ orientation: "Portrait", stapling: false, lamination: false, spiralBinding: false, notes: "" });
   const [step, setStep] = useState<"upload" | "summary">("upload");
   const [placing, setPlacing] = useState(false);
   const [placeErr, setPlaceErr] = useState("");
@@ -69,8 +70,8 @@ function PrinterPage() {
     setPlacing(true); setPlaceErr("");
     try {
       const order = await createOrder({
-        file, printer, pages, copies, options: opts,
-        delivery, payment: "Card", total: price.total,
+        file, printer, pages, copies, options: opts, extras,
+        delivery, payment: "UPI", total: price.total,
       });
       navigate({ to: "/buyer/payment/$id", params: { id: order.id } });
     } catch (e: any) {
@@ -160,6 +161,33 @@ function PrinterPage() {
               <Pill active={delivery === "Delivery"} onClick={() => setDelivery("Delivery")}>Delivery</Pill>
             </div>
 
+            <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <h3 className="font-display text-lg">Order Instructions</h3>
+
+              <OptionGroup label="Orientation">
+                {(["Portrait", "Landscape"] as const).map(v => (
+                  <Pill key={v} active={extras.orientation === v} onClick={() => setExtras({ ...extras, orientation: v })}>{v}</Pill>
+                ))}
+              </OptionGroup>
+
+              <div className="grid grid-cols-3 gap-2">
+                <Pill active={extras.stapling} onClick={() => setExtras({ ...extras, stapling: !extras.stapling })}>Stapling</Pill>
+                <Pill active={extras.lamination} onClick={() => setExtras({ ...extras, lamination: !extras.lamination })}>Lamination</Pill>
+                <Pill active={extras.spiralBinding} onClick={() => setExtras({ ...extras, spiralBinding: !extras.spiralBinding })}>Spiral</Pill>
+              </div>
+
+              <div>
+                <div className="text-xs font-medium text-muted-foreground mb-1.5">Notes for seller</div>
+                <textarea
+                  value={extras.notes}
+                  onChange={e => setExtras({ ...extras, notes: e.target.value })}
+                  rows={3}
+                  placeholder="E.g. print first 10 pages in color, staple top-left…"
+                  className="w-full px-3 py-2.5 rounded-lg bg-muted outline-none focus:ring-2 focus:ring-primary/40 border border-border text-sm"
+                />
+              </div>
+            </div>
+
             <div className="rounded-2xl bg-primary-soft p-4 flex items-center justify-between">
               <div>
                 <div className="text-xs text-muted-foreground">Estimated total</div>
@@ -181,6 +209,11 @@ function PrinterPage() {
                 <Row label="Color" value={opts.color} />
                 <Row label="Sides" value={`${opts.sides}-sided`} />
                 <Row label="Paper" value={opts.paperSize} />
+                <Row label="Orientation" value={extras.orientation} />
+                {(extras.stapling || extras.lamination || extras.spiralBinding) && (
+                  <Row label="Finishing" value={[extras.stapling && "Stapling", extras.lamination && "Lamination", extras.spiralBinding && "Spiral"].filter(Boolean).join(", ")} />
+                )}
+                {extras.notes && <Row label="Notes" value={extras.notes} />}
                 <Row label="Subtotal" value={`₹${price.subtotal}`} />
                 {delivery === "Delivery" && <Row label="Delivery" value={`₹${price.delivery}`} />}
                 <div className="border-t border-border mt-3 pt-3 flex justify-between font-display text-2xl">

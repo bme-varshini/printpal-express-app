@@ -1,17 +1,24 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { MapPin, Save, LogOut, Store, ArrowRight, HelpCircle } from "lucide-react";
-import { useState } from "react";
-import { useAuth, useMyShop } from "@/lib/store";
+import { MapPin, Save, LogOut, Store, ArrowRight, HelpCircle, Upload, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { useAuth, useMyShop, useSignedUrl } from "@/lib/store";
 
 export const Route = createFileRoute("/profile")({ component: Profile });
 
 function Profile() {
   const { user, logout } = useAuth();
-  const { shop, update, save: persist, setAvailable } = useMyShop();
+  const { shop, update, save: persist, setAvailable, uploadQr } = useMyShop();
+  const qrUrl = useSignedUrl("qrcodes", shop.qrPath);
   const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const qrRef = useRef<HTMLInputElement>(null);
   const save = async () => { await persist(); setSaved(true); setTimeout(() => setSaved(false), 1400); };
+  const handleQr = async (f: File) => {
+    setUploadingQr(true);
+    try { await uploadQr(f); } finally { setUploadingQr(false); }
+  };
 
   if (!user) {
     return (
@@ -84,6 +91,28 @@ function Profile() {
           {shop.delivery && (
             <Input label="Delivery charge (₹)" type="number" value={String(shop.deliveryCharge)} onChange={(v: string) => update({ deliveryCharge: Number(v) || 0 })} />
           )}
+
+          <div className="border-t border-border pt-4 space-y-3">
+            <h4 className="font-medium text-sm">UPI Payments</h4>
+            <Input label="UPI ID" value={shop.upiId} onChange={(v: string) => update({ upiId: v })} />
+            <div>
+              <label className="text-sm font-medium">Payment QR code</label>
+              <div className="mt-1.5 flex items-start gap-3">
+                <div className="w-24 h-24 rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center shrink-0">
+                  {uploadingQr ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    : qrUrl ? <img src={qrUrl} alt="QR" className="w-full h-full object-contain" />
+                    : <span className="text-[10px] text-muted-foreground text-center px-1">No QR uploaded</span>}
+                </div>
+                <button type="button" onClick={() => qrRef.current?.click()}
+                  className="flex-1 bg-primary-soft border-2 border-dashed border-primary/40 rounded-lg py-4 flex flex-col items-center gap-1">
+                  <Upload className="w-5 h-5 text-primary" />
+                  <span className="text-xs text-primary font-medium">{shop.qrPath ? "Replace QR" : "Upload QR"}</span>
+                </button>
+                <input ref={qrRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => e.target.files?.[0] && handleQr(e.target.files[0])} />
+              </div>
+            </div>
+          </div>
 
           <button onClick={save}
             className="w-full bg-primary text-primary-foreground py-3 rounded-lg flex items-center justify-center gap-2 font-medium hover:opacity-95 transition">

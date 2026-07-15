@@ -10,6 +10,12 @@ export type OrderStatus =
   | "Completed"
   | "Rejected";
 
+export type PaymentStatus =
+  | "Awaiting Payment"
+  | "Payment Submitted"
+  | "Payment Verified"
+  | "Payment Rejected";
+
 export interface Printer {
   id: string; // seller user_id
   name: string;
@@ -21,12 +27,22 @@ export interface Printer {
   services: string;
   online: boolean;
   category?: string;
+  upiId?: string;
+  qrPath?: string;
 }
 
 export interface PrintOptions {
   color: "B&W" | "Color";
   sides: "Single" | "Double";
   paperSize: "A4" | "A3" | "Letter";
+}
+
+export interface OrderExtras {
+  orientation: "Portrait" | "Landscape";
+  stapling: boolean;
+  lamination: boolean;
+  spiralBinding: boolean;
+  notes: string;
 }
 
 export interface Order {
@@ -37,11 +53,15 @@ export interface Order {
   copies: number;
   pricePerPage: number;
   options: PrintOptions;
+  extras: OrderExtras;
   printerId: string;
   printerName: string;
   location: string;
   delivery: "Self pick up" | "Delivery";
   payment: "Card" | "UPI" | "Cash";
+  paymentStatus: PaymentStatus;
+  paymentProofPath: string;
+  paymentRef: string;
   placedOn: string;
   status: OrderStatus;
   buyerName: string;
@@ -70,6 +90,8 @@ export interface MyShop {
   services: string;
   type: "B&W" | "Color" | "Both";
   delivery: boolean;
+  upiId: string;
+  qrPath: string;
 }
 
 const DEFAULT_SHOP: MyShop = {
@@ -82,6 +104,8 @@ const DEFAULT_SHOP: MyShop = {
   services: "B&W, Color",
   type: "Both",
   delivery: true,
+  upiId: "",
+  qrPath: "",
 };
 
 export const CATEGORIES = ["All", "Documents", "Photos", "Binding", "Posters"];
@@ -95,11 +119,21 @@ function mapOrder(r: any): Order {
     copies: r.copies,
     pricePerPage: Number(r.price_per_page),
     options: { color: r.color, sides: r.sides, paperSize: r.paper_size },
+    extras: {
+      orientation: (r.orientation as "Portrait" | "Landscape") || "Portrait",
+      stapling: !!r.stapling,
+      lamination: !!r.lamination,
+      spiralBinding: !!r.spiral_binding,
+      notes: r.notes || "",
+    },
     printerId: r.seller_id,
     printerName: r.printer_name,
     location: r.location,
     delivery: r.delivery,
     payment: r.payment,
+    paymentStatus: (r.payment_status as PaymentStatus) || "Awaiting Payment",
+    paymentProofPath: r.payment_proof_path || "",
+    paymentRef: r.payment_ref || "",
     placedOn: r.placed_on,
     status: r.status,
     buyerName: r.buyer_name,
@@ -123,6 +157,8 @@ function mapPrinter(r: any): Printer {
     services: r.services,
     online: r.available,
     category: r.category,
+    upiId: r.upi_id || "",
+    qrPath: r.qr_path || "",
   };
 }
 
@@ -172,7 +208,7 @@ export function useMyShop() {
   useEffect(() => {
     let mounted = true;
     if (!user) { setShop(DEFAULT_SHOP); return; }
-    supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+    supabase.from("seller_profiles").select("*").eq("user_id", user.id).maybeSingle().then(({ data }: { data: any }) => {
       if (!mounted) return;
       if (data) {
         setShop({
@@ -185,6 +221,8 @@ export function useMyShop() {
           services: data.services,
           type: data.type as MyShop["type"],
           delivery: data.delivery,
+          upiId: data.upi_id || "",
+          qrPath: data.qr_path || "",
         });
       } else {
         setShop({ ...DEFAULT_SHOP, name: user.name ? `${user.name}'s Shop` : DEFAULT_SHOP.name });
@@ -206,22 +244,47 @@ export function useMyShop() {
       type: next.type,
       delivery: next.delivery,
       available: next.available,
-    });
+      upi_id: next.upiId,
+      qr_path: next.qrPath,
+    } as any);
   }, [user?.id]);
 
   return {
     shop,
-    // Local update; call save() to persist. Keeps typing fast in forms.
     update: (patch: Partial<MyShop>) => setShop(prev => ({ ...prev, ...patch })),
-    // Persist current shop state (used by Save button).
     save: async () => { await persist(shop); },
-    // Toggle availability — persists immediately.
     setAvailable: async (v: boolean) => {
       const next = { ...shop, available: v };
       setShop(next);
       await persist(next);
     },
+    uploadQr: async (file: File) => {
+      if (!user) throw new Error("Not signed in");
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const path = `${user.id}/qr.${ext}`;
+      const up = await supabase.storage.from("qrcodes").upload(path, file, { upsert: true, contentType: file.type || "image/png" });
+      if (up.error) throw up.error;
+      const next = { ...shop, qrPath: path };
+      setShop(next);
+      await persist(next);
+      return path;
+    },
   };
+}
+
+// Hook: fetch a signed URL for a storage object (private buckets).
+export function useSignedUrl(bucket: string, path: string | undefined | null, expiresIn = 3600) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setUrl(null);
+    if (!path) return;
+    supabase.storage.from(bucket).createSignedUrl(path, expiresIn).then(({ data }) => {
+      if (!cancelled) setUrl(data?.signedUrl || null);
+    });
+    return () => { cancelled = true; };
+  }, [bucket, path, expiresIn]);
+  return url;
 }
 
 export function usePrinters() {
@@ -294,10 +357,35 @@ export function useOrders() {
         dbPatch.history = [...(current?.history || []), { status: patch.status, ts: Date.now() }];
       }
       if (patch.payment) dbPatch.payment = patch.payment;
+      if (patch.paymentStatus) dbPatch.payment_status = patch.paymentStatus;
+      if (patch.paymentProofPath !== undefined) dbPatch.payment_proof_path = patch.paymentProofPath;
+      if (patch.paymentRef !== undefined) dbPatch.payment_ref = patch.paymentRef;
       if (Object.keys(dbPatch).length === 0) return;
       await supabase.from("orders").update(dbPatch as any).eq("id", id);
     },
   };
+}
+
+export async function submitPaymentProof(orderId: string, opts: { file?: File | null; ref?: string }) {
+  const { data: sess } = await supabase.auth.getUser();
+  const user = sess.user;
+  if (!user) throw new Error("Not signed in");
+  let proofPath = "";
+  if (opts.file) {
+    const ext = (opts.file.name.split(".").pop() || "png").toLowerCase();
+    const path = `${user.id}/${orderId}-${Date.now()}.${ext}`;
+    const up = await supabase.storage.from("payment-proofs").upload(path, opts.file, {
+      contentType: opts.file.type || "image/png",
+      upsert: true,
+    });
+    if (up.error) throw up.error;
+    proofPath = path;
+  }
+  const patch: Record<string, any> = { payment_status: "Payment Submitted" };
+  if (proofPath) patch.payment_proof_path = proofPath;
+  if (opts.ref) patch.payment_ref = opts.ref;
+  const { error } = await supabase.from("orders").update(patch as any).eq("id", orderId);
+  if (error) throw error;
 }
 
 export async function createOrder(input: {
@@ -306,6 +394,7 @@ export async function createOrder(input: {
   pages: number;
   copies: number;
   options: PrintOptions;
+  extras: OrderExtras;
   delivery: "Self pick up" | "Delivery";
   payment: "Card" | "UPI" | "Cash";
   total: number;
@@ -320,7 +409,7 @@ export async function createOrder(input: {
   });
   if (up.error) throw up.error;
   const { data: profile } = await supabase.from("profiles").select("name,email").eq("id", user.id).maybeSingle();
-  const row = {
+  const row: any = {
     buyer_id: user.id,
     seller_id: input.printer.id,
     file_name: input.file.name,
@@ -335,11 +424,17 @@ export async function createOrder(input: {
     payment: input.payment,
     total: input.total,
     status: "Pending",
-    history: [{ status: "Pending", ts: Date.now() }] as any,
+    history: [{ status: "Pending", ts: Date.now() }],
     printer_name: input.printer.name,
     location: input.printer.location,
     buyer_name: profile?.name || user.email?.split("@")[0] || "User",
     buyer_email: profile?.email || user.email || "",
+    orientation: input.extras.orientation,
+    stapling: input.extras.stapling,
+    lamination: input.extras.lamination,
+    spiral_binding: input.extras.spiralBinding,
+    notes: input.extras.notes,
+    payment_status: "Awaiting Payment",
   };
   const { data, error } = await supabase.from("orders").insert(row).select("*").single();
   if (error) throw error;

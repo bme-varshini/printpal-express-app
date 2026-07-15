@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PhoneFrame, TopBar, BottomNav, PageBody } from "@/components/AppShell";
-import { useOrders, useMyShop, useAuth } from "@/lib/store";
-import { FileText, ArrowRight, MessageCircle, Check, X, IndianRupee, ClipboardList } from "lucide-react";
+import { useOrders, useMyShop, useAuth, useSignedUrl, type Order } from "@/lib/store";
+import { FileText, ArrowRight, MessageCircle, Check, X, IndianRupee, ClipboardList, ImageIcon } from "lucide-react";
 
 export const Route = createFileRoute("/seller/")({ component: SellerDash });
 
@@ -31,7 +31,8 @@ function SellerDash() {
     );
   }
 
-  const pending = orders.filter(o => o.status === "Pending");
+  const toVerify = orders.filter(o => o.paymentStatus === "Payment Submitted");
+  const pending = orders.filter(o => o.status === "Pending" && o.paymentStatus !== "Payment Submitted");
   const active = orders.filter(o => ["Received", "Printing", "Ready for Pick Up"].includes(o.status));
   const completed = orders.filter(o => o.status === "Completed");
   const earnings = completed.reduce((s, o) => s + (o.total || 0), 0);
@@ -56,33 +57,58 @@ function SellerDash() {
           <Stat icon={<IndianRupee className="w-4 h-4" />} label="Earnings" value={`₹${earnings}`} />
         </div>
 
+        {toVerify.length > 0 && (
+          <>
+            <SectionTitle>Payments to Verify</SectionTitle>
+            <div className="space-y-3 mb-5">
+              {toVerify.map(o => (
+                <PaymentReviewCard key={o.id} order={o} onApprove={() => updateOrder(o.id, { paymentStatus: "Payment Verified" })} onReject={() => updateOrder(o.id, { paymentStatus: "Payment Rejected" })} />
+              ))}
+            </div>
+          </>
+        )}
+
         {pending.length > 0 && (
           <>
             <SectionTitle>New Requests</SectionTitle>
             <div className="space-y-3 mb-5">
-              {pending.map(o => (
-                <div key={o.id} className="rounded-2xl border border-border overflow-hidden bg-card">
-                  <div className="bg-primary-soft px-4 py-2.5 flex items-center justify-between">
-                    <h3 className="font-medium text-primary flex items-center gap-2 text-sm"><FileText className="w-4 h-4" />New Order #{o.id}</h3>
-                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-md font-semibold">₹{o.total}</span>
-                  </div>
-                  <div className="px-4 py-3">
-                    <div className="text-sm font-medium truncate">{o.fileName}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {o.pages} pg × {o.copies} · {o.options.color} · {o.options.sides}-sided · {o.options.paperSize}
+              {pending.map(o => {
+                const paid = o.paymentStatus === "Payment Verified";
+                return (
+                  <div key={o.id} className="rounded-2xl border border-border overflow-hidden bg-card">
+                    <div className="bg-primary-soft px-4 py-2.5 flex items-center justify-between">
+                      <h3 className="font-medium text-primary flex items-center gap-2 text-sm"><FileText className="w-4 h-4" />New Order #{o.id.slice(0, 6)}</h3>
+                      <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-md font-semibold">₹{o.total}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">From {o.buyerName} · {o.delivery}</div>
-                    <div className="grid grid-cols-2 gap-2 mt-3">
-                      <button onClick={() => updateOrder(o.id, { status: "Rejected" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border text-destructive text-xs font-medium">
-                        <X className="w-3.5 h-3.5" />Reject
-                      </button>
-                      <button onClick={() => updateOrder(o.id, { status: "Received" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
-                        <Check className="w-3.5 h-3.5" />Accept
-                      </button>
+                    <div className="px-4 py-3">
+                      <div className="text-sm font-medium truncate">{o.fileName}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {o.pages} pg × {o.copies} · {o.options.color} · {o.options.sides}-sided · {o.options.paperSize} · {o.extras.orientation}
+                      </div>
+                      {(o.extras.stapling || o.extras.lamination || o.extras.spiralBinding) && (
+                        <div className="text-xs text-muted-foreground">Finishing: {[o.extras.stapling && "Stapling", o.extras.lamination && "Lamination", o.extras.spiralBinding && "Spiral"].filter(Boolean).join(", ")}</div>
+                      )}
+                      {o.extras.notes && <div className="text-xs text-muted-foreground italic mt-1">"{o.extras.notes}"</div>}
+                      <div className="text-xs text-muted-foreground mt-1">From {o.buyerName} · {o.delivery}</div>
+                      <div className={`text-[11px] mt-1 font-medium ${paid ? "text-success" : o.paymentStatus === "Payment Rejected" ? "text-destructive" : "text-muted-foreground"}`}>
+                        {paid ? "✓ Payment Verified" : o.paymentStatus === "Payment Rejected" ? "Payment Rejected" : "Awaiting payment"}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        <button onClick={() => updateOrder(o.id, { status: "Rejected" })} className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border text-destructive text-xs font-medium">
+                          <X className="w-3.5 h-3.5" />Reject
+                        </button>
+                        <button
+                          onClick={() => paid && updateOrder(o.id, { status: "Received" })}
+                          disabled={!paid}
+                          title={paid ? "" : "Payment must be verified first"}
+                          className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">
+                          <Check className="w-3.5 h-3.5" />Accept
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -160,3 +186,41 @@ function Stat({ icon, label, value }: any) {
 function SectionTitle({ children }: any) {
   return <h3 className="font-display text-lg mt-2 mb-3">{children}</h3>;
 }
+
+function PaymentReviewCard({ order, onApprove, onReject }: { order: Order; onApprove: () => void; onReject: () => void }) {
+  const proofUrl = useSignedUrl("payment-proofs", order.paymentProofPath);
+  return (
+    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+      <div className="bg-primary-soft px-4 py-2.5 flex items-center justify-between">
+        <h3 className="font-medium text-primary flex items-center gap-2 text-sm"><IndianRupee className="w-4 h-4" />Verify Payment</h3>
+        <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-md font-semibold">₹{order.total}</span>
+      </div>
+      <div className="px-4 py-3">
+        <div className="text-sm font-medium truncate">{order.fileName}</div>
+        <div className="text-xs text-muted-foreground">From {order.buyerName}</div>
+        {order.paymentRef && (
+          <div className="text-xs mt-2"><span className="text-muted-foreground">UPI Ref:</span> <span className="font-mono font-medium">{order.paymentRef}</span></div>
+        )}
+        {order.paymentProofPath && (
+          <a href={proofUrl || undefined} target="_blank" rel="noreferrer"
+            className="mt-2 block w-full h-40 rounded-lg bg-muted border border-border overflow-hidden">
+            {proofUrl ? <img src={proofUrl} alt="Payment proof" className="w-full h-full object-contain" />
+              : <div className="w-full h-full flex items-center justify-center"><ImageIcon className="w-6 h-6 text-muted-foreground" /></div>}
+          </a>
+        )}
+        {!order.paymentProofPath && !order.paymentRef && (
+          <div className="text-xs text-muted-foreground mt-2">No proof or reference provided.</div>
+        )}
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <button onClick={onReject} className="flex items-center justify-center gap-1.5 py-2 rounded-lg border border-border text-destructive text-xs font-medium">
+            <X className="w-3.5 h-3.5" />Reject
+          </button>
+          <button onClick={onApprove} className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+            <Check className="w-3.5 h-3.5" />Approve
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
