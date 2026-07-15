@@ -70,9 +70,10 @@ function Login() {
           </button>
         </div>
         <div className="text-right text-xs mt-2 opacity-90">Forgot Password?</div>
+        {err && <p className="mt-3 text-xs bg-destructive/20 rounded p-2">{err}</p>}
 
-        <button type="submit" className="w-full mt-5 py-3 rounded-lg bg-card text-foreground font-medium flex items-center justify-center gap-2 hover:bg-card/90 transition">
-          Sign In <ArrowRight className="w-4 h-4" />
+        <button type="submit" disabled={busy} className="w-full mt-5 py-3 rounded-lg bg-card text-foreground font-medium flex items-center justify-center gap-2 hover:bg-card/90 transition disabled:opacity-60">
+          {busy ? "Signing in…" : <>Sign In <ArrowRight className="w-4 h-4" /></>}
         </button>
       </form>
 
